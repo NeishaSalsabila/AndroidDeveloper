@@ -6,7 +6,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Blue & Purple Palette
 val PrimaryBlue = Color(0xFF5B7FFF)
 val PrimaryPurple = Color(0xFF8B5CF6)
 
@@ -22,7 +21,8 @@ val AppBackground = Color(0xFFF4F5FB)
 val CardSurface = Color(0xFFFFFFFF)
 
 val TextPrimary = Color(0xFF1A1A2E)
-val TextSecondary = Color(0xFF6B7280)
+val TextSecondary = Color(0xFFB0B0C0)
+val TextHint = Color(0xFFD0D0D8)
 
 val BorderLight = Color(0xFFEBEBEB)
 
