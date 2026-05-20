@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.neisha.technicaltest_androiddeveloper.domain.model.User
 import com.neisha.technicaltest_androiddeveloper.ui.adaptive.LayoutType
 import com.neisha.technicaltest_androiddeveloper.ui.adaptive.toLayoutType
+import com.neisha.technicaltest_androiddeveloper.ui.components.UserCard
 
 /**
  * Adaptive user list:
