@@ -37,6 +37,13 @@ B. Teknologi Yang Digunakan
 - Firebase Analytics - Tracking event.
 - WindowSizeClass - Adaptive layout.
 
+Catatan: Aplikasi ini pakai Firebase Analytics, butuh file `google-services.json` yang tidak ikut di-gitignore. 
+Cara dapetinnya: 
+- login ke Firebase Console
+- pilih project "userapp-83a58" atau buat project baru
+- download google-services.json dan taruh di folder `app/`. 
+- Kalau ga ada file ini aplikasi tetap bisa dipakai cuma fitur Analytics aja yang ga jalan.
+
 Arsitekturnya pakai Clean Architecture dengan 3 layer:
 - Domain layer (model, repository interface, use case).
 - Data layer (Room, Retrofit, repository impl).
