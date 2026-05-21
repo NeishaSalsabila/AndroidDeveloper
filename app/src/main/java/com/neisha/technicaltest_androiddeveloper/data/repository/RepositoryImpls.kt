@@ -21,7 +21,6 @@ class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao
 ) : UserRepository {
 
-    // Always serve from Room (offline-first). Room emits updates reactively.
     override fun getUsers(): Flow<List<User>> =
         userDao.getAllUsers().map { entities -> entities.map { it.toDomain() } }
 
@@ -31,20 +30,21 @@ class UserRepositoryImpl @Inject constructor(
             userDao.deleteAll()
             userDao.insertAll(remote.map { it.toEntity() })
         } catch (e: Exception) {
-            // Silently fail – Room already has cached data
         }
     }
 
     override suspend fun addUser(user: User): Result<Unit> {
         return try {
             val response = api.createUser(user.toCreateDto())
-            // Insert returned entity (with server-generated id) into local DB
             userDao.insert(response.toEntity())
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    override suspend fun isEmailTaken(email: String): Boolean =
+        userDao.isEmailExists(email)
 }
 
 @Singleton
@@ -62,7 +62,6 @@ class CityRepositoryImpl @Inject constructor(
             cityDao.deleteAll()
             cityDao.insertAll(remote.map { it.toEntity() })
         } catch (e: Exception) {
-            // Silently fail
         }
     }
 }

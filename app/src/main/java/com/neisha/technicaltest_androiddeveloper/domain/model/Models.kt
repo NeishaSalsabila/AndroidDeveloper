@@ -7,10 +7,15 @@ data class User(
     val email: String,
     val phoneNumber: String,
     val city: String,
-    val gender: Int // 0 = Male, 1 = Female
+    val gender: Int
 )
 
 data class City(
     val id: String,
     val name: String
 )
+
+enum class SortOption {
+    NAME_ASC,
+    NAME_DESC
+}

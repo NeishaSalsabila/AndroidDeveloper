@@ -8,6 +8,7 @@ interface UserRepository {
     fun getUsers(): Flow<List<User>>
     suspend fun refreshUsers()
     suspend fun addUser(user: User): Result<Unit>
+    suspend fun isEmailTaken(email: String): Boolean
 }
 
 interface CityRepository {

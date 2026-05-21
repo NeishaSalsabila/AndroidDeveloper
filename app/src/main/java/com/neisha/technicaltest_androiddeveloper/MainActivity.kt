@@ -7,6 +7,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -32,7 +37,13 @@ class MainActivity : ComponentActivity() {
                     navController = navController,
                     startDestination = Screen.UserList.route
                 ) {
-                    composable(Screen.UserList.route) {
+                    composable(
+                        route = Screen.UserList.route,
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                    ) {
                         UserListScreen(
                             windowSizeClass = windowSizeClass,
                             onNavigateToAddUser = {
@@ -40,7 +51,33 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                    composable(Screen.AddUser.route) {
+                    composable(
+                        route = Screen.AddUser.route,
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it / 3 },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it / 3 },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        }
+                    ) {
                         AddUserScreen(
                             onNavigateBack = { navController.popBackStack() }
                         )

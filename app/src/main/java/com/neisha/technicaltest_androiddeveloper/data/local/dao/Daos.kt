@@ -19,6 +19,9 @@ interface UserDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(user: UserEntity)
 
+    @Query("SELECT EXISTS(SELECT 1 FROM users WHERE email = :email)")
+    suspend fun isEmailExists(email: String): Boolean
+
     @Query("DELETE FROM users")
     suspend fun deleteAll()
 }

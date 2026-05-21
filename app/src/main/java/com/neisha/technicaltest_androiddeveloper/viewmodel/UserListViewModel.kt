@@ -3,17 +3,21 @@ package com.neisha.technicaltest_androiddeveloper.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.neisha.technicaltest_androiddeveloper.analytics.AnalyticsHelper
 import com.neisha.technicaltest_androiddeveloper.domain.model.City
+import com.neisha.technicaltest_androiddeveloper.domain.model.SortOption
 import com.neisha.technicaltest_androiddeveloper.domain.model.User
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.AddUserUseCase
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.GetCitiesUseCase
+import com.neisha.technicaltest_androiddeveloper.domain.usecase.GetUsersUseCase
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.RefreshCitiesUseCase
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.RefreshUsersUseCase
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.SearchUsersUseCase
+import com.neisha.technicaltest_androiddeveloper.util.ConnectivityObserver
 import com.neisha.technicaltest_androiddeveloper.worker.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,8 +41,9 @@ data class UserListUiState(
     val isRefreshing: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
-    val selectedCity: String = "",
-    val sortAscending: Boolean = true
+    val selectedCities: Set<String> = emptySet(),
+    val sortOption: SortOption = SortOption.NAME_ASC,
+    val totalUsers: Int = 0
 )
 
 sealed class AddUserUiState {
@@ -53,16 +58,19 @@ sealed class AddUserUiState {
 class UserListViewModel @Inject constructor(
     private val searchUsersUseCase: SearchUsersUseCase,
     private val addUserUseCase: AddUserUseCase,
+    private val getUsersUseCase: GetUsersUseCase,
     private val refreshUsersUseCase: RefreshUsersUseCase,
     private val getCitiesUseCase: GetCitiesUseCase,
     private val refreshCitiesUseCase: RefreshCitiesUseCase,
     private val analyticsHelper: AnalyticsHelper,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
-    private val _selectedCity = MutableStateFlow("")
-    private val _sortAscending = MutableStateFlow(true)
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _selectedCities = MutableStateFlow<Set<String>>(emptySet())
+    private val _sortOption = MutableStateFlow(SortOption.NAME_ASC)
     private val _isLoading = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
@@ -70,29 +78,29 @@ class UserListViewModel @Inject constructor(
 
     val addUserState: StateFlow<AddUserUiState> = _addUserState.asStateFlow()
 
-    // Debounced search + filter + sort → reactive Flow pipeline
     val uiState: StateFlow<UserListUiState> = combine(
         _searchQuery.debounce(300),
-        _selectedCity,
-        _sortAscending,
+        _selectedCities,
+        _sortOption,
         _isLoading,
         _isRefreshing,
         _error,
         getCitiesUseCase()
     ) { values ->
         val query = values[0] as String
-        val city = values[1] as String
-        val sort = values[2] as Boolean
+        val cities = values[1] as Set<*>
+        val sort = values[2] as SortOption
         val loading = values[3] as Boolean
         val refreshing = values[4] as Boolean
         val error = values[5] as String?
         @Suppress("UNCHECKED_CAST")
-        val cities = values[6] as List<City>
-        Triple(Triple(query, city, sort), Triple(loading, refreshing, error), cities)
+        val cityList = values[6] as List<City>
+        val selectedCities = cities as Set<String>
+        Triple(Triple(query, selectedCities, sort), Triple(loading, refreshing, error), cityList)
     }.flatMapLatest { (filters, status, cities) ->
-        val (query, city, sort) = filters
+        val (query, selectedCities, sort) = filters
         val (loading, refreshing, error) = status
-        searchUsersUseCase(query, city, sort).combine(
+        searchUsersUseCase(query, selectedCities, sort).combine(
             kotlinx.coroutines.flow.flowOf(cities)
         ) { users, cityList ->
             UserListUiState(
@@ -102,10 +110,12 @@ class UserListViewModel @Inject constructor(
                 isRefreshing = refreshing,
                 error = error,
                 searchQuery = query,
-                selectedCity = city,
-                sortAscending = sort
+                selectedCities = selectedCities,
+                sortOption = sort
             )
         }
+    }.combine(getUsersUseCase()) { state, allUsers ->
+        state.copy(totalUsers = allUsers.size)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -113,7 +123,8 @@ class UserListViewModel @Inject constructor(
     )
 
     init {
-        scheduleSyncWork()
+        schedulePeriodicSync()
+        observeConnectivity()
         initialLoad()
     }
 
@@ -152,12 +163,22 @@ class UserListViewModel @Inject constructor(
     }
 
     fun onCityFilterChange(city: String) {
-        _selectedCity.update { city }
+        _selectedCities.update { current ->
+            if (city.isBlank()) emptySet()
+            else if (city in current) current - city
+            else current + city
+        }
         if (city.isNotBlank()) analyticsHelper.logFilterApplied(city)
     }
 
     fun onSortToggle() {
-        _sortAscending.update { !it }
+        val current = _sortOption.value
+        _sortOption.update {
+            when (current) {
+                SortOption.NAME_ASC -> SortOption.NAME_DESC
+                SortOption.NAME_DESC -> SortOption.NAME_ASC
+            }
+        }
     }
 
     fun clearError() {
@@ -174,23 +195,56 @@ class UserListViewModel @Inject constructor(
             val result = addUserUseCase(user)
             if (result.isSuccess) {
                 analyticsHelper.logUserAdded()
+                refreshUsersUseCase()
                 _addUserState.update { AddUserUiState.Success }
             } else {
-                _addUserState.update {
-                    AddUserUiState.Error(result.exceptionOrNull()?.message ?: "Gagal menambahkan user.")
+                val errorMsg = result.exceptionOrNull()
+                val message = when {
+                    errorMsg == null -> "Gagal menambahkan user"
+                    errorMsg.message?.contains("Email sudah terdaftar") == true -> "Email sudah terdaftar"
+                    errorMsg is retrofit2.HttpException -> {
+                        val code = errorMsg.code()
+                        val errorBody = try { errorMsg.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                        if (!errorBody.isNullOrBlank()) errorBody
+                        else if (code == 400) "Data yang dikirim tidak valid (400). Periksa isian Anda."
+                        else if (code == 409) "Data sudah ada di server (409)."
+                        else "Gagal menambahkan user (kode $code)."
+                    }
+                    errorMsg is java.net.ConnectException || errorMsg is java.net.UnknownHostException ->
+                        "Tidak ada koneksi internet. Periksa jaringan Anda."
+                    errorMsg is java.net.SocketTimeoutException ->
+                        "Koneksi timeout. Coba lagi."
+                    else -> "Gagal menambahkan user. Coba lagi."
                 }
+                _addUserState.update { AddUserUiState.Error(message) }
             }
         }
     }
 
-    private fun scheduleSyncWork() {
-        val request = OneTimeWorkRequestBuilder<SyncWorker>()
+    private fun schedulePeriodicSync() {
+        val request = PeriodicWorkRequestBuilder<SyncWorker>(15, java.util.concurrent.TimeUnit.MINUTES)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
             .build()
-        workManager.enqueue(request)
+        workManager.enqueueUniquePeriodicWork(
+            SyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun observeConnectivity() {
+        viewModelScope.launch {
+            var wasOffline = false
+            connectivityObserver.isOnline.collect { isOnline ->
+                if (isOnline && wasOffline) {
+                    refresh()
+                }
+                wasOffline = !isOnline
+            }
+        }
     }
 }

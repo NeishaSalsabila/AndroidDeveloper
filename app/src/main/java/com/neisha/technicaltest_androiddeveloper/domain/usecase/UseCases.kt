@@ -1,6 +1,7 @@
 package com.neisha.technicaltest_androiddeveloper.domain.usecase
 
 import com.neisha.technicaltest_androiddeveloper.domain.model.City
+import com.neisha.technicaltest_androiddeveloper.domain.model.SortOption
 import com.neisha.technicaltest_androiddeveloper.domain.model.User
 import com.neisha.technicaltest_androiddeveloper.domain.repository.CityRepository
 import com.neisha.technicaltest_androiddeveloper.domain.repository.UserRepository
@@ -17,7 +18,7 @@ class GetUsersUseCase @Inject constructor(
 class SearchUsersUseCase @Inject constructor(
     private val userRepository: UserRepository
 ) {
-    operator fun invoke(query: String, cityFilter: String, sortAscending: Boolean): Flow<List<User>> {
+    operator fun invoke(query: String, cityFilters: Set<String>, sortOption: SortOption): Flow<List<User>> {
         return userRepository.getUsers().map { users ->
             users
                 .filter { user ->
@@ -25,12 +26,14 @@ class SearchUsersUseCase @Inject constructor(
                             user.name.contains(query, ignoreCase = true) ||
                             user.email.contains(query, ignoreCase = true) ||
                             user.phoneNumber.contains(query, ignoreCase = true)
-                    val matchesCity = cityFilter.isBlank() || user.city.equals(cityFilter, ignoreCase = true)
+                    val matchesCity = cityFilters.isEmpty() || user.city in cityFilters
                     matchesQuery && matchesCity
                 }
                 .let { filtered ->
-                    if (sortAscending) filtered.sortedBy { it.name.lowercase() }
-                    else filtered.sortedByDescending { it.name.lowercase() }
+                    when (sortOption) {
+                        SortOption.NAME_ASC -> filtered.sortedBy { it.name.lowercase() }
+                        SortOption.NAME_DESC -> filtered.sortedByDescending { it.name.lowercase() }
+                    }
                 }
         }
     }
@@ -39,13 +42,18 @@ class SearchUsersUseCase @Inject constructor(
 class AddUserUseCase @Inject constructor(
     private val userRepository: UserRepository
 ) {
-    suspend operator fun invoke(user: User): Result<Unit> = userRepository.addUser(user)
+    suspend operator fun invoke(user: User): Result<Unit> {
+        if (userRepository.isEmailTaken(user.email)) {
+            return Result.failure(Exception("Email sudah terdaftar"))
+        }
+        return userRepository.addUser(user)
+    }
 }
 
 class RefreshUsersUseCase @Inject constructor(
     private val userRepository: UserRepository
 ) {
-    suspend operator fun invoke() = userRepository.refreshUsers()
+    suspend     operator fun invoke() = userRepository.refreshUsers()
 }
 
 class GetCitiesUseCase @Inject constructor(

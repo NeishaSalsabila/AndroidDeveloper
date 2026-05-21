@@ -2,6 +2,7 @@ package com.neisha.technicaltest_androiddeveloper.ui.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -15,17 +16,12 @@ import com.neisha.technicaltest_androiddeveloper.ui.adaptive.LayoutType
 import com.neisha.technicaltest_androiddeveloper.ui.adaptive.toLayoutType
 import com.neisha.technicaltest_androiddeveloper.ui.components.UserCard
 
-/**
- * Adaptive user list:
- * - Phone  (Compact)  → single column LazyColumn
- * - Tablet (Expanded) → 2-column LazyVerticalGrid
- * - Medium            → 2-column grid as well
- */
 @Composable
 fun AdaptiveUserList(
     users: List<User>,
     windowSizeClass: WindowSizeClass,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState? = null
 ) {
     val layoutType = windowSizeClass.toLayoutType()
 
@@ -33,6 +29,7 @@ fun AdaptiveUserList(
         LayoutType.COMPACT -> {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
+                state = listState ?: LazyListState(),
                 contentPadding = PaddingValues(
                     start = 16.dp, end = 16.dp,
                     top = 8.dp, bottom = 100.dp
