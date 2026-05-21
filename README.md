@@ -26,22 +26,22 @@ Aplikasi tetap bisa dipakai walau tidak ada internet, selama data pernah di-load
 
 B. Teknologi Yang Digunakan
 
-Kotlin - Bahasa utama.
-Jetpack Compose + Material 3 - Buat UI.
-Android Hilt - Dependency injection.
-ViewModel + StateFlow - Ngatur state dan data reaktif.
-Coroutine Flow - Buat aliran data asynchronous.
-Retrofit + OkHttp + Moshi - Networking dan konversi JSON.
-Room Database - Penyimpanan lokal offline.
-WorkManager - Sinkronisasi background setiap 15 menit.
-Firebase Analytics - Tracking event.
-WindowSizeClass - Adaptive layout.
+- Kotlin - Bahasa utama. 
+- Jetpack Compose + Material 3 - Buat UI.
+- Android Hilt - Dependency injection.
+- ViewModel + StateFlow - Ngatur state dan data reaktif.
+- Coroutine Flow - Buat aliran data asynchronous.
+- Retrofit + OkHttp + Moshi - Networking dan konversi JSON.
+- Room Database - Penyimpanan lokal offline.
+- WorkManager - Sinkronisasi background setiap 15 menit.
+- Firebase Analytics - Tracking event.
+- WindowSizeClass - Adaptive layout.
 
 Arsitekturnya pakai Clean Architecture dengan 3 layer:
-Domain layer (model, repository interface, use case).
-Data layer (Room, Retrofit, repository impl).
-UI layer (Compose screen, ViewModel).
-Alur datanya: UI > ViewModel > UseCase > Repository > Room/API. Aplikasi selalu baca dari Room dulu (offline-first), jadi kalau lagi offline data tetap ada.
+- Domain layer (model, repository interface, use case).
+- Data layer (Room, Retrofit, repository impl).
+- UI layer (Compose screen, ViewModel).
+- Alur datanya: UI > ViewModel > UseCase > Repository > Room/API. Aplikasi selalu baca dari Room dulu (offline-first), jadi kalau lagi offline data tetap ada.
 
 
 C. Kenapa Tampilan/Interaksi Seperti Itu
