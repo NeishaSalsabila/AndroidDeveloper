@@ -1,5 +1,6 @@
 package com.neisha.technicaltest_androiddeveloper.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
@@ -19,6 +20,7 @@ import com.neisha.technicaltest_androiddeveloper.domain.usecase.RefreshUsersUseC
 import com.neisha.technicaltest_androiddeveloper.domain.usecase.SearchUsersUseCase
 import com.neisha.technicaltest_androiddeveloper.util.ConnectivityObserver
 import com.neisha.technicaltest_androiddeveloper.worker.SyncWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -63,9 +65,11 @@ class UserListViewModel @Inject constructor(
     private val getCitiesUseCase: GetCitiesUseCase,
     private val refreshCitiesUseCase: RefreshCitiesUseCase,
     private val analyticsHelper: AnalyticsHelper,
-    private val workManager: WorkManager,
+    @ApplicationContext private val context: Context,
     private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
+
+    private val workManager = WorkManager.getInstance(context)
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
